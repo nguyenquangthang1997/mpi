@@ -1,11 +1,13 @@
 import matplotlib.pyplot as pl
 
-a = [(1, 1), (2, 5), (3, 8), (4, 9), (5, 7), (6, 3)]
-b = [(13, 2), (7, 4), (9, 7), (10, 6), (12, 4)]
+data = open("data.txt","r")
 
-pl.plot([1, 2, 3, 4, 6], [-1, -5, -8, -9, -8], color='red')
-pl.plot([1, 2, 3, 4, 6], [-1, -5, -8, -9,-8], "go", color='red')
-pl.plot([ 7,  9, 10, 12,13], [ -4, -7, -6, -4,-2] )
-pl.plot([ 7,  9, 10, 12,13], [ -4, -7, -6, -4,-2], "go" )
-pl.plot([9,4],[-7,-9])
+data_line = data.readline()
+
+point = []
+for line in data_line:
+    data_string = line.split(" ")
+    point.append(data_string)
+
+pl.plot(point,"go")
 pl.show()
