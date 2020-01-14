@@ -459,12 +459,17 @@ int main(int argc, char **argv) {
         }
         left_right.push_back(max_min[0]);
         for (int i = 0; i < list_convex_down.size(); i++) {
-            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) <= 0) {
+            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
                 for (int j = 0; j < list_convex_down[i].size(); j++) {
                     if (relation_point(list_convex_down[i][j], left_right[i * 2]) >= 0 &&
                         relation_point(list_convex_down[i][j], left_right[i * 2 + 1]) <= 0) {
                         convex_down.push_back(list_convex_down[i][j]);
                     }
+                }
+            } else if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) == 0) {
+                if (relation(left_right[i * 2 - 1], left_right[i * 2 + 1], left_right[i * 2 + 2]) > 0
+                    && i != 0 && i != list_convex_down.size() - 1) {
+                    convex_down.push_back(left_right[i * 2]);
                 }
             }
         }
@@ -521,12 +526,17 @@ int main(int argc, char **argv) {
         }
         left_right.push_back(max_min[0]);
         for (int i = 0; i < list_convex_up.size(); i++) {
-            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) <= 0) {
+            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
                 for (int j = 0; j < list_convex_up[i].size(); j++) {
                     if (relation_point(list_convex_up[i][j], left_right[i * 2]) >= 0 &&
                         relation_point(list_convex_up[i][j], left_right[i * 2 + 1]) <= 0) {
                         convex_up.push_back(list_convex_up[i][j]);
                     }
+                }
+            } else if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) == 0) {
+                if (relation(left_right[i * 2 - 1], left_right[i * 2], left_right[i * 2 + 2]) < 0
+                    && i != 0 && i != list_convex_up.size() - 1) {
+                    convex_up.push_back(left_right[i * 2]);
                 }
             }
         }
