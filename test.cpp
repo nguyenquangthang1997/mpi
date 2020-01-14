@@ -325,7 +325,6 @@ int main(int argc, char **argv) {
 //        data11 << temp.x << " " << temp.y << "\n";
 //    }
 //    data11.close();
-
     ifstream infile("data.txt");
     int a, b;
     while (infile >> a >> b) {
@@ -340,11 +339,10 @@ int main(int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &numpro);
     vector<POINT> max_min, up, down;
 
+//    chia up, down
     max_min = get_max_min_point(points, numpro, pid);
-   // printf("aaaaaaa");
     vector<POINT> array_pid = devided_vector(points, numpro, pid);
     int len;
-
     for (int i = 0; i < array_pid.size(); i++) {
         if (relation(max_min[1], max_min[0], array_pid[i]) >= 0) {
             up.push_back(array_pid[i]);
@@ -352,9 +350,6 @@ int main(int argc, char **argv) {
             down.push_back(array_pid[i]);
         }
     }
-
-
-
     if (pid == 0) {
         vector<POINT> temp_point;
         for (int i = 1; i < numpro; i++) {
@@ -372,7 +367,6 @@ int main(int argc, char **argv) {
                 down.insert(down.end(), temp_point.begin(), temp_point.end());
             }
         }
-
         for (int i = 1; i < numpro; i++) {
             len = up.size();
             MPI_Send(&len, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
@@ -385,7 +379,6 @@ int main(int argc, char **argv) {
                 MPI_Send(down.data(), down.size(), POINTS_STRUCT, i, 3, MPI_COMM_WORLD);
             }
         }
-
     } else {
         len = up.size();
         MPI_Send(&len, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -412,25 +405,18 @@ int main(int argc, char **argv) {
         }
     }
 
-
+// sap xep theo quick sort
     down = sort_points(down, numpro, pid, max_min);
     up = sort_points(up, numpro, pid, max_min);
 
-
+//    chia point de xu li, tu dong them point max, min
     vector<POINT> down_array, down_array_temp, convex_down;
     down_array_temp = devided_vector(down, numpro, pid);
     down_array.push_back(max_min[1]);
     down_array.insert(down_array.end(), down_array_temp.begin(), down_array_temp.end());
     down_array.push_back(max_min[0]);
-    data.open("result1.txt");
-    for (int i = 0; i < down_array.size(); i++) {
-        temp.x = down_array[i].x;
-        temp.y = down_array[i].y;
-        data << temp.x << " " << temp.y << "\n";
 
-    }
-    data.close();
-
+//  tim down convexhull tung bo vxl
     vector<int> index_down(1, 0);
     if (down_array.size() > 2) {
         int max_size = down_array.size();
@@ -443,7 +429,6 @@ int main(int argc, char **argv) {
                    0) {
                 index_down.pop_back();
             }
-//            printf("%d \n", i);
             index_down.push_back(i);
         }
     }
@@ -452,9 +437,10 @@ int main(int argc, char **argv) {
     }
     down_array.resize(index_down.size());
 
+//    ket hop
     if (pid == 0) {
         vector<POINT> temp_dowm_array;
-        vector<vector<POINT>> list_convex_down;
+        vector<vector<POINT>> list_convex_down;// tap cac convexdown o tung vxl
         list_convex_down.push_back(down_array);
         for (int i = 1; i < numpro; i++) {
             MPI_Recv(&len, 1, MPI_INT, i, 4, MPI_COMM_WORLD, &status);
@@ -464,7 +450,7 @@ int main(int argc, char **argv) {
                 list_convex_down.push_back(temp_dowm_array);
             }
         }
-        vector<POINT> left_right;
+        vector<POINT> left_right;//chi so left right convex down tung bo vxl
         vector<POINT> left_right_temp;
         left_right.push_back(max_min[1]);
         for (int i = 0; i < list_convex_down.size() - 1; i++) {
@@ -482,16 +468,6 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        ofstream data1;
-        data1.open("result2.txt");
-        for (int i = 0; i < convex_down.size(); i++) {
-            temp.x = convex_down[i].x;
-            temp.y = convex_down[i].y;
-            data1 << temp.x << " " << temp.y << "\n";
-
-        }
-        data1.close();
-
     } else {
         len = down_array.size();
         MPI_Send(&len, 1, MPI_INT, 0, 4, MPI_COMM_WORLD);
@@ -505,15 +481,6 @@ int main(int argc, char **argv) {
     up_array.push_back(max_min[1]);
     up_array.insert(up_array.end(), up_array_temp.begin(), up_array_temp.end());
     up_array.push_back(max_min[0]);
-    data.open("result3.txt");
-    for (int i = 0; i < up_array.size(); i++) {
-        temp.x = up_array[i].x;
-        temp.y = up_array[i].y;
-        data << temp.x << " " << temp.y << "\n";
-
-    }
-    data.close();
-
     vector<int> index_up(1, 0);
     if (up_array.size() > 2) {
         int max_size = up_array.size();
@@ -533,11 +500,6 @@ int main(int argc, char **argv) {
         up_array[i] = up_array[index_up[i]];
     }
     up_array.resize(index_up.size());
-    for (int i = 0; i < up_array.size(); i++) {
-        printf("%d %d %d //",pid, up_array[i].x, up_array[i].y);
-    }
-    printf("\n");
-
     if (pid == 0) {
         vector<POINT> temp_up_array;
         vector<vector<POINT>> list_convex_up;
@@ -558,9 +520,6 @@ int main(int argc, char **argv) {
             left_right.insert(left_right.end(), left_right_temp.begin(), left_right_temp.end());
         }
         left_right.push_back(max_min[0]);
-        for (int i = 0; i < left_right.size(); i++) {
-            printf("up %d %d \n", left_right[i].x, left_right[i].y);
-        }
         for (int i = 0; i < list_convex_up.size(); i++) {
             if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) <= 0) {
                 for (int j = 0; j < list_convex_up[i].size(); j++) {
@@ -572,15 +531,18 @@ int main(int argc, char **argv) {
             }
         }
         ofstream data1;
-        data1.open("result4.txt");
-        for (int i = 0; i < convex_up.size(); i++) {
+        data1.open("result.txt");
+        for (int i = 0; i < convex_down.size(); i++) {
+            temp.x = convex_down[i].x;
+            temp.y = convex_down[i].y;
+            data1 << temp.x << " " << temp.y << "\n";
+        }
+        for (int i = convex_up.size() - 2; i >= 0; i--) {
             temp.x = convex_up[i].x;
             temp.y = convex_up[i].y;
             data1 << temp.x << " " << temp.y << "\n";
-
         }
         data1.close();
-
     } else {
         len = up_array.size();
         MPI_Send(&len, 1, MPI_INT, 0, 6, MPI_COMM_WORLD);
@@ -588,6 +550,5 @@ int main(int argc, char **argv) {
             MPI_Send(up_array.data(), up_array.size(), POINTS_STRUCT, 0, 7, MPI_COMM_WORLD);
         }
     }
-
     MPI_Finalize();
 }
