@@ -167,7 +167,8 @@ vector<POINT> sort_points(vector<POINT> points, int numpro, int pid, vector<POIN
             MPI_Recv(&len_temp, 1, MPI_INT, i, 100, MPI_COMM_WORLD, &status);
             sorted_array_temp.resize(len_temp);
             MPI_Recv(sorted_array_temp.data(), len_temp, POINTS_STRUCT, i, 1, MPI_COMM_WORLD, &status);
-            sorted_array.insert(sorted_array.end(), sorted_array_temp.begin(), sorted_array_temp.end());
+            if (sorted_array_temp.size() != 0)
+                sorted_array.insert(sorted_array.end(), sorted_array_temp.begin(), sorted_array_temp.end());
         }
         len_temp = sorted_array.size();
         for (int i = 1; i < numpro; i++) {
@@ -188,6 +189,7 @@ vector<POINT> sort_points(vector<POINT> points, int numpro, int pid, vector<POIN
         return sorted_array;
     }
 }
+
 //tim tiep tuyen
 POINT findUpTangent(POINT x, vector<POINT> y) {
     if (y.size() == 1)
@@ -221,14 +223,11 @@ POINT findUpTangent(POINT x, vector<POINT> y) {
 }
 
 POINT findDownTangent(POINT x, vector<POINT> y) {
-    //todo check 1, 2 point
-    //todo view relation_point when in down
     vector<POINT> y_temp;
     if (y.size() == 1) return y[0];
     if (y.size() == 2) {
         if (relation(x, y[1], y[0]) < 0) return y[1];
         else return y[0];
-//        else return y[0];
     } else {
         int middle = y.size() / 2;
         if (relation(x, y[middle], y[middle - 1]) == 0) {
@@ -255,8 +254,15 @@ POINT findDownTangent(POINT x, vector<POINT> y) {
 
 //tim tiep tuyen chung
 vector<POINT> findUpCommonTangent(vector<POINT> left, vector<POINT> right) {
-    if (right.size() < 3) {
-        POINT face_left = findDownTangent(right[0], left);
+    if (right.size() == 1) {
+        POINT face_left = findUpTangent(right[0], left);
+        return {face_left, right[0]};
+    }else if (right.size() == 2) {
+        POINT face_left = findUpTangent(right[0], left);
+        if (relation(face_left, right[0], right[1]) > 0) {
+            face_left = findUpTangent(right[1], left);
+            return {face_left, right[1]};
+        }
         return {face_left, right[0]};
     } else {
         vector<POINT> right_temp;
@@ -286,8 +292,15 @@ vector<POINT> findUpCommonTangent(vector<POINT> left, vector<POINT> right) {
 
 vector<POINT> findDownCommonTangent(vector<POINT> left, vector<POINT> right) {
     vector<POINT> right_temp;
-    if (right.size() < 3) {
+    if (right.size() == 1) {
         POINT face_left = findDownTangent(right[0], left);
+        return {face_left, right[0]};
+    } else if (right.size() == 2) {
+        POINT face_left = findDownTangent(right[0], left);
+        if (relation(face_left, right[0], right[1]) < 0) {
+            face_left = findDownTangent(right[1], left);
+            return {face_left, right[1]};
+        }
         return {face_left, right[0]};
     } else {
         int middle_right = right.size() / 2;
@@ -316,25 +329,26 @@ vector<POINT> findDownCommonTangent(vector<POINT> left, vector<POINT> right) {
 
 
 int main(int argc, char **argv) {
+    srand(time(NULL));
     vector<POINT> points;
     POINT temp;
     ofstream data;
-//    ofstream data11;
-//    data11.open("data.txt");
-//    for (int i = 0; i < 100; i++) {
-//        temp.x = rand() % 100000;
-//        temp.y = rand() % 100000;
-//        points.push_back(temp);
-//        data11 << temp.x << " " << temp.y << "\n";
-//    }
-//    data11.close();
-    ifstream infile("data.txt");
-    int a, b;
-    while (infile >> a >> b) {
-        temp.x = a;
-        temp.y = b;
+    ofstream data11;
+    data11.open("data.txt");
+    for (int i = 0; i < 1000; i++) {
+        temp.x = rand() % 100000;
+        temp.y = rand() % 100000;
         points.push_back(temp);
+        data11 << temp.x << " " << temp.y << "\n";
     }
+    data11.close();
+//    ifstream infile("data.txt");
+//    int a, b;
+//    while (infile >> a >> b) {
+//        temp.x = a;
+//        temp.y = b;
+//        points.push_back(temp);
+//    }
 
     int pid, numpro;
     MPI_Init(&argc, &argv);
@@ -444,12 +458,28 @@ int main(int argc, char **argv) {
     if (pid == 0) {
         vector<POINT> temp_dowm_array;
         vector<vector<POINT>> list_convex_down;// tap cac convexdown o tung vxl
+        down_array.pop_back();
+        data.open("down_data.txt");
+        data << "0 \n";
+        for (int i = 0; i < down_array.size(); i++) {
+            data << down_array[i].x << " " << down_array[i].y << "\n";
+        }
         list_convex_down.push_back(down_array);
         for (int i = 1; i < numpro; i++) {
             MPI_Recv(&len, 1, MPI_INT, i, 4, MPI_COMM_WORLD, &status);
             if (len != 0) {
                 temp_dowm_array.resize(len);
                 MPI_Recv(temp_dowm_array.data(), len, POINTS_STRUCT, i, 5, MPI_COMM_WORLD, &status);
+                if (i == numpro - 1) {
+                    temp_dowm_array.erase(temp_dowm_array.begin());
+                } else {
+                    temp_dowm_array.pop_back();
+                    temp_dowm_array.erase(temp_dowm_array.begin());
+                }
+                data << i << " \n";
+                for (int i = 0; i < temp_dowm_array.size(); i++) {
+                    data << temp_dowm_array[i].x << " " << temp_dowm_array[i].y << "\n";
+                }
                 list_convex_down.push_back(temp_dowm_array);
             }
         }
@@ -461,11 +491,24 @@ int main(int argc, char **argv) {
             left_right.insert(left_right.end(), left_right_temp.begin(), left_right_temp.end());
         }
         left_right.push_back(max_min[0]);
+
+        data << "left right\n";
+        for (int i = 0; i < left_right.size(); i++) {
+            data << left_right[i].x << " " << left_right[i].y << "\n";
+        }
+        data.close();
+
         for (int i = 0; i < list_convex_down.size(); i++) {
             if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
                 for (int j = 0; j < list_convex_down[i].size(); j++) {
                     if (relation_point(list_convex_down[i][j], left_right[i * 2]) >= 0 &&
                         relation_point(list_convex_down[i][j], left_right[i * 2 + 1]) <= 0) {
+                        while (convex_down.size() > 2) {
+                            if (relation(convex_down[convex_down.size() - 2], convex_down[convex_down.size() - 1],
+                                         list_convex_down[i][j]) <= 0)
+                                convex_down.pop_back();
+                            else break;
+                        }
                         convex_down.push_back(list_convex_down[i][j]);
                     }
                 }
@@ -511,15 +554,33 @@ int main(int argc, char **argv) {
     if (pid == 0) {
         vector<POINT> temp_up_array;
         vector<vector<POINT>> list_convex_up;
+        up_array.pop_back();
+        data.open("up_data.txt");
+        data << "0 \n";
+        for (int i = 0; i < up_array.size(); i++) {
+            data << up_array[i].x << " " << up_array[i].y << "\n";
+        }
         list_convex_up.push_back(up_array);
         for (int i = 1; i < numpro; i++) {
             MPI_Recv(&len, 1, MPI_INT, i, 6, MPI_COMM_WORLD, &status);
             if (len != 0) {
                 temp_up_array.resize(len);
                 MPI_Recv(temp_up_array.data(), len, POINTS_STRUCT, i, 7, MPI_COMM_WORLD, &status);
+
+                if (i == numpro - 1) {
+                    temp_up_array.erase(temp_up_array.begin());
+                } else {
+                    temp_up_array.pop_back();
+                    temp_up_array.erase(temp_up_array.begin());
+                }
+                data << i << " \n";
+                for (int i = 0; i < temp_up_array.size(); i++) {
+                    data << temp_up_array[i].x << " " << temp_up_array[i].y << "\n";
+                }
                 list_convex_up.push_back(temp_up_array);
             }
         }
+//        data.close();
         vector<POINT> left_right;
         vector<POINT> left_right_temp;
         left_right.push_back(max_min[1]);
@@ -528,11 +589,22 @@ int main(int argc, char **argv) {
             left_right.insert(left_right.end(), left_right_temp.begin(), left_right_temp.end());
         }
         left_right.push_back(max_min[0]);
+        data << "left right\n";
+        for (int i = 0; i < left_right.size(); i++) {
+            data << left_right[i].x << " " << left_right[i].y << "\n";
+        }
+        data.close();
         for (int i = 0; i < list_convex_up.size(); i++) {
             if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
                 for (int j = 0; j < list_convex_up[i].size(); j++) {
                     if (relation_point(list_convex_up[i][j], left_right[i * 2]) >= 0 &&
                         relation_point(list_convex_up[i][j], left_right[i * 2 + 1]) <= 0) {
+                        while (convex_up.size() > 2) {
+                            if (relation(convex_up[convex_up.size() - 2], convex_up[convex_up.size() - 1],
+                                         list_convex_up[i][j]) >= 0)
+                                convex_down.pop_back();
+                            else break;
+                        }
                         convex_up.push_back(list_convex_up[i][j]);
                     }
                 }
