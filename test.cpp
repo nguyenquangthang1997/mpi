@@ -72,6 +72,7 @@ vector<POINT> quick_sort(vector<POINT> p) {
     }
 }
 
+// chia theo bo vi xu ly
 vector<POINT> devided_vector(vector<POINT> p, int numpro, int pid) {
     int len_divided_vector = p.size() / numpro;
 
@@ -85,6 +86,7 @@ vector<POINT> devided_vector(vector<POINT> p, int numpro, int pid) {
     return array;
 }
 
+// chia theo x de sort
 vector<POINT> devided_by_x_vector(vector<POINT> p, int numpro, int pid, vector<POINT> max_min) {
     int range_x = max_min[0].x - max_min[1].x;
     int len_vector_sort = range_x / numpro;
@@ -186,7 +188,7 @@ vector<POINT> sort_points(vector<POINT> points, int numpro, int pid, vector<POIN
         return sorted_array;
     }
 }
-
+//tim tiep tuyen
 POINT findUpTangent(POINT x, vector<POINT> y) {
     if (y.size() == 1)
         return y[0];
@@ -251,6 +253,7 @@ POINT findDownTangent(POINT x, vector<POINT> y) {
     }
 }
 
+//tim tiep tuyen chung
 vector<POINT> findUpCommonTangent(vector<POINT> left, vector<POINT> right) {
     if (right.size() < 3) {
         POINT face_left = findDownTangent(right[0], left);
