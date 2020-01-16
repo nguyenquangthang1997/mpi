@@ -1,14 +1,16 @@
 #include <bits/stdc++.h>
 #include "mpi.h"
 #include <cstddef>
+#include <chrono>
 
+using namespace std::chrono;
 using namespace std;
 struct POINT {
     int x;
     int y;
 };
-
 int lengths[2] = {1, 1};
+double t_communication, start1, end1;
 MPI_Status status;
 MPI_Aint offsets[2] = {offsetof(POINT, x), offsetof(POINT, y)};
 MPI_Datatype types[2] = {MPI_INT, MPI_INT};
@@ -30,7 +32,6 @@ int relation_point(POINT point1, POINT point2) {
 
 //p1-p2-p3 >0 re trai, <0 re phai, = 0 thi k doi
 int relation(POINT point1, POINT point2, POINT point3) {
-
     long long temp = (long long) (point3.y - point1.y) * (point2.x - point1.x) -
                      (long long) (point2.y - point1.y) * (point3.x - point1.x);
     if (temp > 0) return 1; else if (temp < 0) return -1; else return 0;
@@ -125,7 +126,10 @@ vector<POINT> get_max_min_point(vector<POINT> p, int numpro, int pid) {
         }
         max_min_temp.resize(2);
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Recv(max_min_temp.data(), 2, POINTS_STRUCT, i, i, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (relation_point(max_min[0], max_min_temp[0]) < 0) {
                 max_min[0] = max_min_temp[0];
             }
@@ -134,7 +138,10 @@ vector<POINT> get_max_min_point(vector<POINT> p, int numpro, int pid) {
             }
         }
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Send(max_min.data(), 2, POINTS_STRUCT, i, 0, MPI_COMM_WORLD);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
         }
         return max_min;
 
@@ -164,16 +171,29 @@ vector<POINT> sort_points(vector<POINT> points, int numpro, int pid, vector<POIN
         int len_temp = 0;
         vector<POINT> sorted_array_temp;
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Recv(&len_temp, 1, MPI_INT, i, 100, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
+
             sorted_array_temp.resize(len_temp);
+            start1 = MPI_Wtime();
             MPI_Recv(sorted_array_temp.data(), len_temp, POINTS_STRUCT, i, 1, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (sorted_array_temp.size() != 0)
                 sorted_array.insert(sorted_array.end(), sorted_array_temp.begin(), sorted_array_temp.end());
         }
         len_temp = sorted_array.size();
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Send(&len_temp, 1, MPI_INT, i, 100, MPI_COMM_WORLD);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
+            start1 = MPI_Wtime();
             MPI_Send(sorted_array.data(), sorted_array.size(), POINTS_STRUCT, i, i, MPI_COMM_WORLD);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
         }
         return sorted_array;
     } else {
@@ -257,7 +277,7 @@ vector<POINT> findUpCommonTangent(vector<POINT> left, vector<POINT> right) {
     if (right.size() == 1) {
         POINT face_left = findUpTangent(right[0], left);
         return {face_left, right[0]};
-    }else if (right.size() == 2) {
+    } else if (right.size() == 2) {
         POINT face_left = findUpTangent(right[0], left);
         if (relation(face_left, right[0], right[1]) > 0) {
             face_left = findUpTangent(right[1], left);
@@ -334,28 +354,33 @@ int main(int argc, char **argv) {
     POINT temp;
     ofstream data;
     ofstream data11;
-    data11.open("data.txt");
-    for (int i = 0; i < 1000; i++) {
-        temp.x = rand() % 100000;
-        temp.y = rand() % 100000;
-        points.push_back(temp);
-        data11 << temp.x << " " << temp.y << "\n";
-    }
-    data11.close();
-//    ifstream infile("data.txt");
-//    int a, b;
-//    while (infile >> a >> b) {
-//        temp.x = a;
-//        temp.y = b;
+//    argv[1]
+//    data11.open("data.txt");
+//    for (int i = 0; i < 100000; i++) {
+//        temp.x = rand() % 100000000;
+//        temp.y = rand() % 100000000;
 //        points.push_back(temp);
+//        data11 << temp.x << " " << temp.y << "\n";
 //    }
+//    data11.close();
+    ifstream infile(argv[1]);
+    int a, b;
+    while (infile >> a >> b) {
+        temp.x = a;
+        temp.y = b;
+        points.push_back(temp);
+    }
 
     int pid, numpro;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &pid);
     MPI_Comm_size(MPI_COMM_WORLD, &numpro);
+    // Get the name of the processor
+    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    int name_len;
+    MPI_Get_processor_name(processor_name, &name_len);
     vector<POINT> max_min, up, down;
-
+    double start = MPI_Wtime();
 //    chia up, down
     max_min = get_max_min_point(points, numpro, pid);
     vector<POINT> array_pid = devided_vector(points, numpro, pid);
@@ -370,30 +395,53 @@ int main(int argc, char **argv) {
     if (pid == 0) {
         vector<POINT> temp_point;
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Recv(&len, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
                 temp_point.resize(len);
+                start1 = MPI_Wtime();
                 MPI_Recv(temp_point.data(), len, POINTS_STRUCT, i, 1, MPI_COMM_WORLD, &status);
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
                 up.insert(up.end(), temp_point.begin(), temp_point.end());
             }
-
+            start1 = MPI_Wtime();
             MPI_Recv(&len, 1, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
                 temp_point.resize(len);
+                start1 = MPI_Wtime();
                 MPI_Recv(temp_point.data(), len, POINTS_STRUCT, i, 3, MPI_COMM_WORLD, &status);
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
                 down.insert(down.end(), temp_point.begin(), temp_point.end());
             }
         }
         for (int i = 1; i < numpro; i++) {
             len = up.size();
+            start1 = MPI_Wtime();
             MPI_Send(&len, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
+                start1 = MPI_Wtime();
                 MPI_Send(up.data(), up.size(), POINTS_STRUCT, i, 1, MPI_COMM_WORLD);
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
             }
             len = down.size();
+            start1 = MPI_Wtime();
             MPI_Send(&len, 1, MPI_INT, i, 2, MPI_COMM_WORLD);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
+                start1 = MPI_Wtime();
                 MPI_Send(down.data(), down.size(), POINTS_STRUCT, i, 3, MPI_COMM_WORLD);
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
             }
         }
     } else {
@@ -458,18 +506,24 @@ int main(int argc, char **argv) {
     if (pid == 0) {
         vector<POINT> temp_dowm_array;
         vector<vector<POINT>> list_convex_down;// tap cac convexdown o tung vxl
-        down_array.pop_back();
+        if (numpro != 1) down_array.pop_back();
         data.open("down_data.txt");
         data << "0 \n";
         for (int i = 0; i < down_array.size(); i++) {
             data << down_array[i].x << " " << down_array[i].y << "\n";
         }
-        list_convex_down.push_back(down_array);
+//        list_convex_down.push_back(down_array);
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Recv(&len, 1, MPI_INT, i, 4, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
                 temp_dowm_array.resize(len);
+                start1 = MPI_Wtime();
                 MPI_Recv(temp_dowm_array.data(), len, POINTS_STRUCT, i, 5, MPI_COMM_WORLD, &status);
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
                 if (i == numpro - 1) {
                     temp_dowm_array.erase(temp_dowm_array.begin());
                 } else {
@@ -483,39 +537,23 @@ int main(int argc, char **argv) {
                 list_convex_down.push_back(temp_dowm_array);
             }
         }
-        vector<POINT> left_right;//chi so left right convex down tung bo vxl
-        vector<POINT> left_right_temp;
-        left_right.push_back(max_min[1]);
-        for (int i = 0; i < list_convex_down.size() - 1; i++) {
-            left_right_temp = findDownCommonTangent(list_convex_down[i], list_convex_down[i + 1]);
-            left_right.insert(left_right.end(), left_right_temp.begin(), left_right_temp.end());
-        }
-        left_right.push_back(max_min[0]);
-
-        data << "left right\n";
-        for (int i = 0; i < left_right.size(); i++) {
-            data << left_right[i].x << " " << left_right[i].y << "\n";
-        }
         data.close();
-
+        vector<POINT> left_right, convexdown_temp_thang;//chi so left right convex down tung bo vxl
+        convex_down = down_array;
         for (int i = 0; i < list_convex_down.size(); i++) {
-            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
-                for (int j = 0; j < list_convex_down[i].size(); j++) {
-                    if (relation_point(list_convex_down[i][j], left_right[i * 2]) >= 0 &&
-                        relation_point(list_convex_down[i][j], left_right[i * 2 + 1]) <= 0) {
-                        while (convex_down.size() > 2) {
-                            if (relation(convex_down[convex_down.size() - 2], convex_down[convex_down.size() - 1],
-                                         list_convex_down[i][j]) <= 0)
-                                convex_down.pop_back();
-                            else break;
-                        }
-                        convex_down.push_back(list_convex_down[i][j]);
-                    }
+
+            left_right = findDownCommonTangent(convex_down, list_convex_down[i]);
+            convexdown_temp_thang.resize(0);
+            convexdown_temp_thang = convex_down;
+            convex_down.resize(0);
+            for (int j = 0; j < convexdown_temp_thang.size(); j++) {
+                if (relation_point(convexdown_temp_thang[j], left_right[0]) <= 0) {
+                    convex_down.push_back(convexdown_temp_thang[j]);
                 }
-            } else if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) == 0) {
-                if (relation(left_right[i * 2 - 1], left_right[i * 2 + 1], left_right[i * 2 + 2]) > 0
-                    && i != 0 && i != list_convex_down.size() - 1) {
-                    convex_down.push_back(left_right[i * 2]);
+            }
+            for (int j = 0; j < list_convex_down[i].size(); j++) {
+                if (relation_point(list_convex_down[i][j], left_right[1]) >= 0) {
+                    convex_down.push_back(list_convex_down[i][j]);
                 }
             }
         }
@@ -554,19 +592,23 @@ int main(int argc, char **argv) {
     if (pid == 0) {
         vector<POINT> temp_up_array;
         vector<vector<POINT>> list_convex_up;
-        up_array.pop_back();
+        if (numpro != 1) up_array.pop_back();
         data.open("up_data.txt");
         data << "0 \n";
         for (int i = 0; i < up_array.size(); i++) {
             data << up_array[i].x << " " << up_array[i].y << "\n";
         }
-        list_convex_up.push_back(up_array);
         for (int i = 1; i < numpro; i++) {
+            start1 = MPI_Wtime();
             MPI_Recv(&len, 1, MPI_INT, i, 6, MPI_COMM_WORLD, &status);
+            end1 = MPI_Wtime();
+            t_communication += end1 - start1;
             if (len != 0) {
                 temp_up_array.resize(len);
+                start1 = MPI_Wtime();
                 MPI_Recv(temp_up_array.data(), len, POINTS_STRUCT, i, 7, MPI_COMM_WORLD, &status);
-
+                end1 = MPI_Wtime();
+                t_communication += end1 - start1;
                 if (i == numpro - 1) {
                     temp_up_array.erase(temp_up_array.begin());
                 } else {
@@ -580,38 +622,21 @@ int main(int argc, char **argv) {
                 list_convex_up.push_back(temp_up_array);
             }
         }
-//        data.close();
-        vector<POINT> left_right;
-        vector<POINT> left_right_temp;
-        left_right.push_back(max_min[1]);
-        for (int i = 0; i < list_convex_up.size() - 1; i++) {
-            left_right_temp = findUpCommonTangent(list_convex_up[i], list_convex_up[i + 1]);
-            left_right.insert(left_right.end(), left_right_temp.begin(), left_right_temp.end());
-        }
-        left_right.push_back(max_min[0]);
-        data << "left right\n";
-        for (int i = 0; i < left_right.size(); i++) {
-            data << left_right[i].x << " " << left_right[i].y << "\n";
-        }
-        data.close();
+        vector<POINT> left_right, convexup_temp_thang;
+        convex_up = up_array;
         for (int i = 0; i < list_convex_up.size(); i++) {
-            if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) < 0) {
-                for (int j = 0; j < list_convex_up[i].size(); j++) {
-                    if (relation_point(list_convex_up[i][j], left_right[i * 2]) >= 0 &&
-                        relation_point(list_convex_up[i][j], left_right[i * 2 + 1]) <= 0) {
-                        while (convex_up.size() > 2) {
-                            if (relation(convex_up[convex_up.size() - 2], convex_up[convex_up.size() - 1],
-                                         list_convex_up[i][j]) >= 0)
-                                convex_down.pop_back();
-                            else break;
-                        }
-                        convex_up.push_back(list_convex_up[i][j]);
-                    }
+            left_right = findUpCommonTangent(convex_up, list_convex_up[i]);
+            convexup_temp_thang.resize(0);
+            convexup_temp_thang = convex_up;
+            convex_up.resize(0);
+            for (int j = 0; j < convexup_temp_thang.size(); j++) {
+                if (relation_point(convexup_temp_thang[j], left_right[0]) <= 0) {
+                    convex_up.push_back(convexup_temp_thang[j]);
                 }
-            } else if (relation_point(left_right[i * 2], left_right[i * 2 + 1]) == 0) {
-                if (relation(left_right[i * 2 - 1], left_right[i * 2], left_right[i * 2 + 2]) < 0
-                    && i != 0 && i != list_convex_up.size() - 1) {
-                    convex_up.push_back(left_right[i * 2]);
+            }
+            for (int j = 0; j < list_convex_up[i].size(); j++) {
+                if (relation_point(list_convex_up[i][j], left_right[1]) >= 0) {
+                    convex_up.push_back(list_convex_up[i][j]);
                 }
             }
         }
@@ -628,6 +653,10 @@ int main(int argc, char **argv) {
             data1 << temp.x << " " << temp.y << "\n";
         }
         data1.close();
+        std::cout << "The process " << processor_name << " took " << t_communication << " seconds to comunication."
+                  << std::endl;
+        double end = MPI_Wtime();
+        std::cout << "The process " << processor_name << " took " << end - start << " seconds to run." << std::endl;
     } else {
         len = up_array.size();
         MPI_Send(&len, 1, MPI_INT, 0, 6, MPI_COMM_WORLD);

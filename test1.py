@@ -1,6 +1,8 @@
 import matplotlib.pyplot as pl
+import sys
 
-data = open("/home/mpiuser/cloud/data.txt", "r")
+
+data = open(sys.argv[1], "r")
 
 # data_line = data.readline()
 
